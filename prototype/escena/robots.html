@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robots · Centro de Agentes</title>
+<style>
+  @font-face { font-family: "Barlow SC"; font-weight: 600; src: url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2"); }
+  :root { --bg: #0b1033; --card: #121a52; --line: #2a3c9a; --txt: #eef1ff; --mut: #9aa6e6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font-family: "Barlow SC", system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p { color: var(--mut); margin: 0 0 14px; max-width: 900px; line-height: 1.4; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 14px; }
+  button { font: inherit; color: var(--txt); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  button[aria-pressed="true"] { background: #2a86ff; border-color: #2a86ff; }
+  .grid { display: grid; grid-template-columns: 130px repeat(6, minmax(100px, 1fr)); gap: 6px; overflow-x: auto; }
+  .h { font-size: 15px; color: var(--mut); align-self: end; padding: 4px; }
+  .cell { background: radial-gradient(circle at 50% 70%, #2b2f7a, #151b55 70%); border: 1px solid #1f2a72; border-radius: 6px; height: 190px; display: grid; place-items: end center; padding-bottom: 8px; }
+  canvas { image-rendering: pixelated; }
+  .ref { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 6px; }
+  .ref figure { margin: 0; background: #151b55; border: 1px solid #1f2a72; border-radius: 6px; padding: 8px; text-align: center; }
+  .ref figcaption { font-size: 13px; color: var(--mut); margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>Robots animados (V3)</h1>
+<p>Robot base dibujado por código sobre la grilla de la escena, con color y accesorio de cada agente. Aparecen todas las poses que no son «trabajando en el box», porque para trabajar se usan los robots calcados de la referencia. Escala ×<span id="k">4</span>, sin suavizado.</p>
+<div class="bar">
+  <span>Tamaño:</span>
+  <button data-size="L" aria-pressed="true">L · piso inferior y pasillo</button>
+  <button data-size="S" aria-pressed="false">S · piso superior</button>
+  <span style="margin-left:12px">Zoom:</span>
+  <button data-k="3">×3</button><button data-k="4" aria-pressed="true">×4</button><button data-k="6">×6</button>
+</div>
+<div class="grid" id="grid"></div>
+<div class="ref" id="ref"></div>
+
+<script src="assets/robots/robots.js"></script>
+<script>
+const R = window.ROBOTS, AG = ["codex", "claude", "vision", "ultron", "gentle", "antigravity"];
+const NAMES = { codex: "Codex", claude: "Claude Code", vision: "Vision", ultron: "Ultron", gentle: "Gentle Shell", antigravity: "Antigravity" };
+const LABEL = { walk_down: "Caminar ↓", walk_up: "Caminar ↑", walk_side: "Caminar ↔", idle: "Esperar", wave: "Saludar",
+  type: "Tipear (S)", unknown: "Sin datos", sit: "Sofá + joystick", chess: "Ajedrez", oil: "Taza de aceite", sleep: "Recarga (dormir)", fist: "Puño en alto", uno: "UNO" };
+let size = "L", k = 4;
+const sheets = {};
+const load = s => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = s; });
+const cells = [];
+async function build() {
+  for (const a of AG) for (const s of "SL") sheets[a + "_" + s] = await load("assets/" + R.sheets[a + "_" + s].file);
+  draw();
+  const ref = document.getElementById("ref");
+  ref.innerHTML = "";
+  for (const [f, cap] of [["robot_codex", "calco · sentado (Codex)"], ["pose_walk", "calco · caminando"], ["pose_oil", "calco · aceite"],
+                          ["pose_sofa", "calco · sofá"], ["pose_chess_a", "calco · ajedrez"], ["robot_recarga", "calco · recarga"]]) {
+    const im = await load(`assets/${f}.png`), c = document.createElement("canvas");
+    c.width = im.width; c.height = im.height; c.getContext("2d").drawImage(im, 0, 0);
+    c.style.width = im.width * k + "px"; c.style.height = im.height * k + "px";
+    const fig = document.createElement("figure"); fig.append(c);
+    fig.insertAdjacentHTML("beforeend", `<figcaption>${cap}</figcaption>`); ref.append(fig);
+  }
+}
+function draw() {
+  const g = document.getElementById("grid");
+  g.innerHTML = '<div class="h"></div>' + AG.map(a => `<div class="h">${NAMES[a]}</div>`).join("");
+  cells.length = 0;
+  for (const [pose, info] of Object.entries(R.poses)) {
+    if (!R.sheets["codex_" + size].poses[pose]) continue;
+    g.insertAdjacentHTML("beforeend", `<div class="h">${LABEL[pose] || pose}</div>`);
+    for (const a of AG) {
+      const fr = R.sheets[a + "_" + size].poses[pose];
+      const w = Math.max(...fr.map(f => f.w)), h = Math.max(...fr.map(f => f.h));
+      const c = document.createElement("canvas"); c.width = w + 2; c.height = h + 2;
+      c.style.width = (w + 2) * k + "px"; c.style.height = (h + 2) * k + "px";
+      const d = document.createElement("div"); d.className = "cell"; d.append(c); g.append(d);
+      cells.push({ c, fr, sheet: sheets[a + "_" + size], ms: info.ms, w, h });
+    }
+  }
+}
+function tick(t) {
+  for (const cl of cells) {
+    const f = cl.fr[Math.floor(t / cl.ms) % cl.fr.length], x = cl.c.getContext("2d");
+    x.clearRect(0, 0, cl.c.width, cl.c.height);
+    // alineado por los pies: así se ve el movimiento real del cuadro
+    const fx = Math.max(...cl.fr.map(q => q.fx)), fy = Math.max(...cl.fr.map(q => q.fy));
+    x.drawImage(cl.sheet, f.x, f.y, f.w, f.h, 1 + fx - f.fx, 1 + fy - f.fy, f.w, f.h);
+  }
+  requestAnimationFrame(tick);
+}
+document.querySelectorAll("[data-size]").forEach(b => b.onclick = () => {
+  size = b.dataset.size; document.querySelectorAll("[data-size]").forEach(x => x.setAttribute("aria-pressed", x === b)); draw(); });
+document.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
+  k = +b.dataset.k; document.getElementById("k").textContent = k;
+  document.querySelectorAll("[data-k]").forEach(x => x.setAttribute("aria-pressed", x === b)); build(); });
+build().then(() => requestAnimationFrame(tick));
+</script>
+</body>
+</html>

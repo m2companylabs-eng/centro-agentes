@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+scratch/
+.idea/
+.vscode/
+.env
+config.local.json
+verificacion.txt
+public/

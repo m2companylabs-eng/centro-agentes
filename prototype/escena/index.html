@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Centro de Agentes · Escena</title>
+<style>
+  @font-face { font-family: "Barlow SC"; font-weight: 500; src: url(fonts/barlow-semi-condensed-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Barlow SC"; font-weight: 600; src: url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: "Barlow SC"; font-weight: 700; src: url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format("woff2"); }
+
+  :root {
+    --bg: #070a1f;
+    --hud-fill: #0a1446;
+    --hud-line: #2a86ff;
+    --hud-glow: rgba(42, 134, 255, .75);
+    --txt: #f4f7ff;
+    --codex: #22d6f0; --claude: #ff8a1f; --vision: #ffd21f;
+    --ultron: #34e35b; --gentle: #ff4fd8; --antigravity: #b46bff;
+    --ok: #34ff6a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--txt); font-family: "Barlow SC", system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 14px; overflow-x: hidden; }
+
+  /* ----- Escenario: espacio de la referencia (1671 x 942 px), escalado en enteros sobre la grilla 557 x 314 ----- */
+  .frame { position: relative; width: calc(1671px * var(--k)); height: calc(942px * var(--k)); }
+  .stage { position: absolute; left: 0; top: 0; width: 1671px; height: 942px; transform: scale(var(--k)); transform-origin: 0 0; overflow: hidden; }
+  .stage canvas { position: absolute; inset: 0; width: 1671px; height: 942px; image-rendering: pixelated; pointer-events: none; }
+  img#overlay { position: absolute; inset: 0; width: 1671px; height: 942px; opacity: 0; pointer-events: none; }
+
+  /* ----- Paneles inferiores (mismo lenguaje que el HUD) ----- */
+  .panel { position: absolute; --c: 18px; }
+  .panel .shape { position: absolute; inset: 0; filter: drop-shadow(0 0 3px #7fe6ff) drop-shadow(0 0 9px rgba(42, 134, 255, .85)); }
+  .panel .shape > i { position: absolute; display: block;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)); }
+  .panel .shape > i:nth-child(1) { inset: 0; background: #2f7dff; }
+  .panel .shape > i:nth-child(2) { inset: 2px; background: linear-gradient(180deg, #a8f2ff, #7fe3ff); --c: 17px; }
+  .panel .shape > i:nth-child(3) { inset: 5px; background: #1a3f99; --c: 16px; }
+  .panel .shape > i:nth-child(4) { inset: 7px; background: linear-gradient(180deg, rgba(14, 26, 80, .97), rgba(9, 15, 56, .97)); --c: 15px; }
+  .panel > *:not(.shape) { position: absolute; white-space: nowrap; }
+  .panel h3 { margin: 0; font-size: 28px; font-weight: 700; text-shadow: 0 2px 0 #050a26; }
+  .trow .av { position: absolute; left: -5px; top: -6px; width: 51px; height: 51px; image-rendering: pixelated; filter: drop-shadow(0 0 4px var(--c2)); }
+  .trow .nm { position: absolute; left: 62px; top: -4px; font-size: 22px; font-weight: 500; }
+  .trow .br { position: absolute; left: 62px; top: 26px; width: 122px; height: 10px; border-radius: 5px; background: #23285a; overflow: hidden; }
+  .trow .br b { display: block; height: 100%; background: var(--c2); box-shadow: 0 0 6px var(--c2); }
+  .trow .vl { position: absolute; left: 198px; top: 6px; font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .trow .pc { position: absolute; left: 296px; top: 6px; font-size: 22px; font-weight: 600; color: #36e9ff; text-shadow: 0 0 6px rgba(54, 233, 255, .5); }
+  .arow { position: absolute; left: 30px; height: 30px; }
+  .arow svg { position: absolute; left: 0; top: -2px; }
+  .arow .dot { position: absolute; left: 72px; top: 5px; width: 19px; height: 19px; border-radius: 50%; box-shadow: 0 0 6px currentColor; background: currentColor; }
+  .arow span { position: absolute; left: 104px; top: -2px; font-size: 23.5px; font-weight: 500; }
+
+  /* ----- Cartel OIL STATION ----- */
+  .osign { position: absolute; left: 384px; top: 466px; width: 204px; height: 56px; background: #ff9a26;
+    clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+    filter: drop-shadow(0 0 9px #ff9a26); }
+  .osign::after { content: ""; position: absolute; inset: 3px; background: linear-gradient(180deg, #3a1d0b, #24110a);
+    clip-path: polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px); }
+  .osign span { position: absolute; z-index: 1; left: 54px; top: 9px; font-size: 29px; font-weight: 700; color: #ffd9a0; letter-spacing: .5px;
+    text-shadow: 0 0 8px rgba(255, 154, 38, .8); }
+  .osign svg { position: absolute; z-index: 1; left: 18px; top: 11px; }
+
+  /* ----- TV, burbuja musical, holograma ----- */
+  canvas#tv { left: 1244px !important; top: 481px !important; width: 184px !important; height: 136px !important; inset: auto; image-rendering: pixelated;
+    transform-origin: 0 0; }
+  .bubble { position: absolute; left: 738px; top: 598px; width: 60px; height: 52px; animation: bob 1.6s ease-in-out infinite; }
+  .holo { position: absolute; left: 636px; top: 790px; width: 200px; height: 96px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(70, 200, 255, .35), rgba(70, 200, 255, 0) 70%); mix-blend-mode: screen; animation: holo 3.2s ease-in-out infinite; }
+  .glow { position: absolute; pointer-events: none; border-radius: 50%; mix-blend-mode: screen;
+    background: radial-gradient(ellipse at center, rgba(var(--g), var(--a)), rgba(var(--g), 0) 70%); animation: holo 4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-5px); } }
+  @keyframes holo { 50% { opacity: .25; } }
+
+  /* ----- HUD superior ----- */
+  .hud { position: absolute; left: 8px; top: 0; width: 1656px; height: 106px; }
+  /* marco hexagonal: tubo de neón celeste (borde azul + núcleo claro + línea interior + relleno) */
+  .hud-shape { position: absolute; inset: 0; --c: 26px; filter: drop-shadow(0 0 3px #7fe6ff) drop-shadow(0 0 10px rgba(42, 134, 255, .9)); }
+  .hud-shape > i { position: absolute; display: block;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)); }
+  .hud-shape > i:nth-child(1) { inset: 0; background: #2f7dff; }
+  .hud-shape > i:nth-child(2) { inset: 2px; background: linear-gradient(180deg, #a8f2ff, #7fe3ff); --c: 25px; }
+  .hud-shape > i:nth-child(3) { inset: 5px; background: #1a3f99; --c: 23px; }
+  .hud-shape > i:nth-child(4) { inset: 7px; background: linear-gradient(180deg, #0d1a56 0%, #0a1244 60%, #08103a 100%); --c: 22px; }
+  .hud > *, .metric > * { position: absolute; }
+  .ring { border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, #0d1d5c 55%, #0a1446 70%); box-shadow: inset 0 0 0 2px #17357e; }
+  .ring svg { overflow: visible; }
+  .neon-cyan { filter: drop-shadow(0 0 4px #29e6ff) drop-shadow(0 0 10px rgba(41, 230, 255, .6)); }
+  .title { left: 160px; top: 7px; font-size: 42px; font-weight: 600; letter-spacing: .2px; text-shadow: 0 2px 0 #050a26; }
+  .status { left: 162px; top: 51px; font-size: 26px; font-weight: 600; color: var(--ok); display: flex; align-items: center; gap: 9px; text-shadow: 0 0 8px rgba(52, 255, 106, .5); }
+  .status i { width: 19px; height: 19px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: pulse 2.4s ease-in-out infinite; }
+  .divider { left: 505px; top: 22px; width: 3px; height: 62px; background: #2fd0ff; box-shadow: 0 0 8px #2fd0ff; }
+  .metric .lbl { position: absolute; font-size: 21.5px; font-weight: 500; white-space: nowrap; }
+  .metric .val { position: absolute; font-size: 41px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+  .cell { position: absolute; top: 4px; height: 92px; background: #2560e0;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+  .cell::after { content: ""; position: absolute; inset: 2px; background: linear-gradient(180deg, #0b1650, #091040);
+    clip-path: polygon(13px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 13px) 100%, 0 100%, 0 13px); }
+
+  /* ----- Carteles de los boxes ----- */
+  .sign { position: absolute; top: 178px; height: 96px; --c: #fff; }
+  .sign .plate { position: absolute; inset: 0; background: var(--c);
+    clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 0, 0 18px);
+    clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px), 0 18px);
+    filter: drop-shadow(0 0 8px var(--c)); animation: neon 6s infinite; animation-delay: var(--d, 0s); }
+  .sign .plate::after { content: ""; position: absolute; inset: 4px; background: linear-gradient(180deg, #121a52 0%, #0d123e 100%);
+    clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px); }
+  .sign .tip { position: absolute; left: 50%; bottom: -13px; width: 26px; height: 15px; margin-left: -13px; background: var(--c);
+    clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 0 6px var(--c)); }
+  .sign .tip::after { content: ""; position: absolute; left: 5px; top: -1px; width: 16px; height: 10px; background: #0d123e; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+  .sign .ico { position: absolute; left: 16px; top: 13px; width: 50px; height: 44px; display: grid; place-items: center; color: var(--c);
+    filter: drop-shadow(0 0 5px var(--c)); }
+  .sign .name { position: absolute; left: 72px; top: 7px; font-size: 27px; font-weight: 600; white-space: nowrap; text-shadow: 0 2px 0 #050a26; }
+  .sign .tok { position: absolute; left: 73px; top: 40px; font-size: 18.5px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .sign .bar { position: absolute; left: 20px; right: 20px; top: 68px; height: 15px; background: #26294f; border-radius: 3px; overflow: hidden; }
+  .sign .bar b { display: block; height: 100%; background: var(--c); box-shadow: 0 0 8px var(--c); border-radius: 3px; }
+
+  /* ----- Zona de recarga ----- */
+  .rsign { position: absolute; left: 1424px; top: 282px; width: 230px; height: 50px; background: #ff9a26;
+    clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+    filter: drop-shadow(0 0 8px #ff9a26); }
+  .rsign::after { content: ""; position: absolute; inset: 3px; background: linear-gradient(180deg, #3a1d0b, #24110a);
+    clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 9px, 100% calc(100% - 9px), calc(100% - 9px) 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); }
+  .rsign span { position: absolute; z-index: 1; left: 44px; top: 10px; font-size: 22px; font-weight: 700; color: #ffc36b; letter-spacing: .3px; white-space: nowrap;
+    text-shadow: 0 0 8px rgba(255, 154, 38, .7); }
+  .rsign svg { position: absolute; z-index: 1; left: 14px; top: 9px; }
+  .battery { position: absolute; left: 1567px; top: 349px; width: 70px; height: 32px; border: 3px solid #eef4ff; border-radius: 4px; padding: 3px; display: flex; gap: 3px;
+    box-shadow: 0 0 6px rgba(200, 230, 255, .5); background: #0b1a22; }
+  .battery::after { content: ""; position: absolute; left: 22px; top: -8px; width: 20px; height: 5px; background: #eef4ff; border-radius: 2px 2px 0 0; }
+  .battery i { flex: 1; background: #6ff03a; box-shadow: 0 0 4px #6ff03a; opacity: .18; }
+  .battery i.on { opacity: 1; }
+  .pct { position: absolute; left: 1578px; top: 384px; font-size: 30px; font-weight: 700; text-shadow: 0 2px 0 #050a26; }
+  .zzz { position: absolute; font-weight: 700; color: #6fd2ff; text-shadow: 0 0 6px #2fa8ff; animation: zz 3.6s ease-in-out infinite; }
+
+  .demo { align-self: center; font-size: 15px; font-weight: 700; letter-spacing: 1px; color: #0a0f2a; background: #ffd21f; padding: 1px 8px; border-radius: 3px; }
+
+  @keyframes pulse { 50% { opacity: .55; } }
+  @keyframes neon { 0%, 92%, 100% { opacity: 1; } 93% { opacity: .82; } 94% { opacity: 1; } 96% { opacity: .9; } }
+  @keyframes zz { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: .55; transform: translateY(-4px); } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  .medir *, .medir *::before, .medir *::after { animation: none !important; }
+
+
+  /* ----- V5: estados de los datos ----- */
+  .sign.nodata .tok, .trow.nodata .vl, .trow.nodata .pc { color: #8f97c8; font-style: italic; }
+  .sign.nodata .plate { opacity: .55; }
+  .badge { position: absolute; font-size: 15px; font-weight: 700; letter-spacing: .5px; padding: 1px 7px; border-radius: 4px; white-space: nowrap; }
+  .badge.parcial { color: #1a1206; background: #ffb21f; box-shadow: 0 0 6px rgba(255, 178, 31, .6); }
+  .status.demo { color: #ffd21f; text-shadow: 0 0 8px rgba(255, 210, 31, .5); } .status.demo i { background: #ffd21f; box-shadow: 0 0 8px #ffd21f; }
+  .status.offline { color: #ff5a5a; text-shadow: 0 0 8px rgba(255, 90, 90, .5); } .status.offline i { background: #ff5a5a; box-shadow: 0 0 8px #ff5a5a; animation: none; }
+  .sign, .trow { cursor: pointer; }
+  .trow { width: 352px; height: 40px; }   /* la fila entera es el área activa (sin mover su contenido) */
+  .sign:focus-visible, .trow:focus-visible { outline: 3px solid #7fe3ff; outline-offset: 3px; border-radius: 6px; }
+  /* tooltip (coordenadas de pantalla) */
+  #tip { position: fixed; z-index: 50; pointer-events: none; display: none; min-width: 230px; max-width: 320px; padding: 9px 12px; border-radius: 8px;
+    background: rgba(9, 14, 52, .96); border: 2px solid var(--tc, #2f7dff); box-shadow: 0 0 12px var(--tc, #2f7dff); font-size: 15px; line-height: 1.35; color: #eef1ff; }
+  #tip b { font-size: 17px; } #tip .m { color: #9aa6e6; } #tip .st { font-weight: 700; }
+  /* panel de detalle (dentro del escenario: escala con él) */
+  #detail { position: absolute; z-index: 40; left: 520px; top: 150px; width: 630px; display: none; --c: 22px; }
+  #detail .shape { position: absolute; inset: 0; filter: drop-shadow(0 0 4px var(--dc)) drop-shadow(0 0 12px var(--dc)); }
+  #detail .shape > i { position: absolute; display: block;
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)); }
+  #detail .shape > i:nth-child(1) { inset: 0; background: var(--dc); }
+  #detail .shape > i:nth-child(2) { inset: 4px; background: linear-gradient(180deg, rgba(14, 22, 74, .98), rgba(8, 13, 50, .98)); --c: 20px; }
+  #detail .in { position: relative; padding: 22px 28px 24px; }
+  #detail h2 { margin: 0; font-size: 34px; display: flex; align-items: center; gap: 14px; }
+  #detail h2 img { width: 54px; height: 54px; image-rendering: pixelated; }
+  #detail .chip { font-size: 18px; padding: 2px 10px; border-radius: 5px; font-weight: 700; }
+  #detail dl { display: grid; grid-template-columns: 170px 1fr; gap: 7px 14px; margin: 16px 0 0; font-size: 20px; }
+  #detail dt { color: #9aa6e6; } #detail dd { margin: 0; font-variant-numeric: tabular-nums; }
+  #detail ul { margin: 12px 0 0; padding-left: 20px; color: #b9c3ff; font-size: 17px; }
+  #detail .x { position: absolute; right: 22px; top: 16px; font: inherit; font-size: 26px; color: #eef1ff; background: none; border: 0; cursor: pointer; }
+  #detail .sim { margin-top: 12px; font-size: 16px; color: #9aa6e6; }
+  /* ----- Controles del boceto (no son parte del producto) ----- */
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: center; font-size: 17px; color: #b9c3ff; max-width: 1671px; }
+  .controls button { font: inherit; font-weight: 600; color: #e9edff; background: #141c55; border: 1px solid #2a3c9a; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .controls button[aria-pressed="true"] { background: #2a86ff; border-color: #2a86ff; color: #fff; }
+  .controls input { vertical-align: middle; }
+  #soundCtl .snd { display: inline-flex; align-items: center; gap: 6px; }
+  #soundCtl .snd input { accent-color: #2a86ff; width: 17px; height: 17px; }
+  #soundCtl .try { font-size: 13px; padding: 2px 7px; font-weight: 600; }
+  #soundCtl fieldset { border: 0; margin: 0; padding: 0; display: contents; }
+  #soundCtl fieldset:disabled .snd { opacity: .45; }
+  #sndOn svg { vertical-align: -3px; margin-right: 6px; }
+  .controls select { font: inherit; background: #141c55; color: #e9edff; border: 1px solid #2a3c9a; border-radius: 5px; padding: 2px 4px; }
+  .note { max-width: 1100px; font-size: 16px; line-height: 1.45; color: #9aa6e6; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="demo" title="Datos de demostración: números copiados de la referencia">DEMO · números de la referencia</div>
+<div class="frame" id="frame">
+  <div class="stage" id="stage">
+    <canvas id="scene" width="557" height="314"></canvas>
+    <canvas id="tv" width="92" height="68"></canvas>
+    <div class="holo"></div>
+
+    <!-- HUD superior (HTML nativo, datos enlazados) -->
+    <div class="hud">
+      <div class="hud-shape"><i></i><i></i><i></i><i></i></div>
+      <img id="brain" src="assets/icon_brain.png" alt="" style="image-rendering:pixelated;filter:drop-shadow(0 0 6px rgba(41,230,255,.55))">
+      <div class="title">Centro de Agentes</div>
+      <div class="status"><i></i>Operativo</div>
+      <div class="divider"></div>
+
+      <div class="metric">
+        <div class="ring" style="left:532px;top:12px;width:78px;height:78px">
+          <svg class="neon-cyan" width="46" height="44" viewBox="0 0 46 44" fill="none" stroke="#5ff0ff" stroke-width="3.4" stroke-linejoin="round">
+            <path d="M23 3 43 13 23 23 3 13Z" fill="rgba(95,240,255,.25)"/><path d="M3 21l20 10 20-10"/><path d="M3 29l20 10 20-10"/>
+          </svg>
+        </div>
+        <div class="lbl" style="left:628px;top:15px">Tokens Totales</div>
+        <div class="badge parcial" id="hudPartial" style="left:770px;top:16px;display:none">PARCIAL</div>
+        <div class="val" style="left:628px;top:39px" data-k="total"></div>
+      </div>
+
+      <div class="cell" style="left:846px;width:248px"></div>
+      <div class="metric">
+        <div class="ring" style="left:868px;top:18px;width:66px;height:66px;background:radial-gradient(circle,#0c3a2a 55%,#0a1446 72%)">
+          <svg width="34" height="38" viewBox="0 0 34 38" style="filter:drop-shadow(0 0 5px #34ff6a)"><path d="M12 2h10v18h9L17 36 3 20h9z" fill="#34e35b"/></svg>
+        </div>
+        <div class="lbl" style="left:946px;top:15px">Entrada (Total)</div>
+        <div class="val" style="left:946px;top:39px;font-size:36px" data-k="input"></div>
+      </div>
+
+      <div class="cell" style="left:1100px;width:248px"></div>
+      <div class="metric">
+        <div class="ring" style="left:1121px;top:18px;width:66px;height:66px;background:radial-gradient(circle,#3a1050 55%,#0a1446 72%)">
+          <svg width="34" height="38" viewBox="0 0 34 38" style="filter:drop-shadow(0 0 5px #ff4fd8)"><path d="M12 36h10V18h9L17 2 3 18h9z" fill="#ff5ad9"/></svg>
+        </div>
+        <div class="lbl" style="left:1199px;top:15px">Salida (Total)</div>
+        <div class="val" style="left:1199px;top:39px;font-size:36px" data-k="output"></div>
+      </div>
+
+      <div class="cell" style="left:1354px;width:296px"></div>
+      <div class="metric">
+        <div class="ring" style="left:1374px;top:18px;width:66px;height:66px">
+          <svg class="neon-cyan" width="36" height="34" viewBox="0 0 36 34"><g fill="#3fe9ff"><rect x="2" y="20" width="8" height="12"/><rect x="14" y="12" width="8" height="20"/><rect x="26" y="2" width="8" height="30"/></g></svg>
+        </div>
+        <div class="lbl" style="left:1452px;top:15px">Promedio por Agente</div>
+        <div class="val" style="left:1452px;top:39px;font-size:36px" data-k="avg"></div>
+      </div>
+    </div>
+
+    <div id="signs"></div>
+
+    <div class="rsign">
+      <svg width="24" height="32" viewBox="0 0 24 32" style="filter:drop-shadow(0 0 4px #ffd21f)"><path d="M14 0 2 18h8l-2 14L22 12h-8z" fill="#ffd21f"/></svg>
+      <span>ZONA DE RECARGA</span>
+    </div>
+    <div class="battery" id="battery"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="pct" id="pct">76%</div>
+
+    <div class="osign">
+      <svg width="24" height="34" viewBox="0 0 24 34" style="filter:drop-shadow(0 0 4px #ffc21f)"><path d="M12 1C9 8 2 15 2 22a10 10 0 0 0 20 0C22 15 15 8 12 1Z" fill="#ffc21f"/><path d="M7 22a5 5 0 0 0 5 5" stroke="#fff3c4" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+      <span>OIL STATION</span>
+    </div>
+
+    <svg class="bubble" viewBox="0 0 60 52"><path d="M30 2a24 22 0 1 1-13 40L6 50l5-13A24 22 0 0 1 30 2Z" fill="#141a44" stroke="#e9eeff" stroke-width="2.5"/>
+      <path d="M25 13l14-4v19a5 4 0 1 1-3-3.6V15l-8 2.4V31a5 4 0 1 1-3-3.6z" fill="#ff5ad9" style="filter:drop-shadow(0 0 3px #ff5ad9)"/></svg>
+
+    <section class="panel" id="ptokens" style="left:12px;top:522px;width:392px;height:372px">
+      <div class="shape"><i></i><i></i><i></i><i></i></div>
+      <h3 style="left:40px;top:14px">Tokens por Agente</h3>
+      <div id="trows"></div>
+    </section>
+
+    <section class="panel" id="pact" style="left:1302px;top:696px;width:358px;height:216px">
+      <div class="shape"><i></i><i></i><i></i><i></i></div>
+      <svg style="left:24px;top:22px;filter:drop-shadow(0 0 4px #36e9ff)" width="50" height="28" viewBox="0 0 50 28" fill="none" stroke="#36e9ff" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"><path d="M2 15h10l4-10 6 20 5-14 3 4h18"/></svg>
+      <h3 style="left:82px;top:14px">Actividad Actual</h3>
+      <div id="arows"></div>
+    </section>
+
+    <section id="detail" role="dialog" aria-modal="false" aria-labelledby="dTitle"><div class="shape"><i></i><i></i></div><div class="in" id="dIn"></div></section>
+    <canvas id="fg" width="557" height="314"></canvas>
+    <canvas id="navc" width="1671" height="942" style="image-rendering:auto;display:none"></canvas>
+    <img id="overlay" alt="" hidden>
+  </div>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<div class="controls">
+  <button id="btnEmpty" aria-pressed="false">Escena vacía (sin robots)</button>
+  <button id="btnLayers" aria-pressed="false">Ver solo capa de arquitectura</button>
+  <label>Superponer referencia <input id="ovl" type="range" min="0" max="100" value="0"> <span id="ovlv">0%</span></label>
+  <button id="btnTyping" aria-pressed="true">Animación de tipeo</button>
+  <button id="btnNav" aria-pressed="false">Ver navegación</button>
+  <button id="btnTest" aria-pressed="false">Probar recorrido</button>
+</div>
+<div class="controls" id="liveCtl" style="font-size:15px"></div>
+<div class="controls" id="soundCtl" style="font-size:15px" role="group" aria-label="Sonido"></div>
+<p class="note" id="testInfo" style="color:#ffe36b;min-height:1.2em"></p>
+<p class="note"><a href="robots.html" style="color:#7fe3ff">Ver la galería de robots animados (V3)</a></p>
+<p class="note">Escena completa (V1). Toda la escena calcada de la referencia a una grilla de 557×314 con una paleta de 96 colores, en capas. Los paneles, carteles, la TV, la batería y los números son HTML/canvas nativo, sin la imagen de fondo. «Escena vacía» saca todos los robots: se ve lo redibujado detrás de cada uno.<!--  Arquitectura y robots calcados de la referencia a una grilla de 557×157 con una paleta de 96 colores, en capas separadas: fondo del box, robot y escritorio con laptop. Los carteles, el panel superior, la batería y los números son HTML nativo, sin la imagen de fondo. «Mostrar boxes y cápsula vacíos» deja ver lo que tapan los robots: pared de cada box y silla gamer redibujadas por código (V1, A1). --></p>
+
+<script src="assets/layout.js"></script>
+<script src="assets/nav.js"></script>
+<script src="assets/robots/robots.js"></script>
+<script src="sim.js"></script>
+<script src="sound.js"></script>
+<script>
+// ?medir=1 → escena congelada y determinista (para comparar con la referencia: Anexo A.8)
+const MEDIR = new URLSearchParams(location.search).has("medir");
+const REF_MODE = MEDIR || new URLSearchParams(location.search).get("modo") === "referencia";
+if (MEDIR) document.documentElement.classList.add("medir");
+// «Reducir movimiento» del sistema: se congelan TODOS los efectos (no solo la caminata). Auditoría PRE-09.
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const animT = t => (MEDIR || REDUCED) ? 0 : t;   // reloj de los efectos decorativos
+// Todo texto que viene de la telemetría se escapa antes de entrar al HTML. Auditoría URG-01.
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const AGENTS = [
+  { id: "codex",       name: "Codex",        color: "var(--codex)",       tokens: 2980430, icon: "code" },
+  { id: "claude",      name: "Claude Code",  color: "var(--claude)",      tokens: 2714990, icon: "layers" },
+  { id: "vision",      name: "Vision",       color: "var(--vision)",      tokens: 2615280, icon: "eye" },
+  { id: "ultron",      name: "Ultron",       color: "var(--ultron)",      tokens: 2402760, icon: "gear" },
+  { id: "gentle",      name: "Gentle Shell", color: "var(--gentle)",      tokens: 2131860, icon: "term" },
+  { id: "antigravity", name: "Antigravity",  color: "var(--antigravity)", tokens: 1999060, icon: "rocket" },
+];
+const DEMO = { total: 12845320, input: 7231900, output: 5613420, avg: 2140887, battery: 76 };
+
+const ICONS = {
+  code:   '<svg width="44" height="36" viewBox="0 0 44 36" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8 3 18l10 10M31 8l10 10-10 10M25 4 19 32"/></svg>',
+  layers: '<svg width="42" height="40" viewBox="0 0 42 40" fill="currentColor"><path d="M21 2 40 11 21 20 2 11Z"/><path d="M2 19l4-2 15 7 15-7 4 2-19 9z"/><path d="M2 27l4-2 15 7 15-7 4 2-19 9z"/></svg>',
+  eye:    '<svg width="46" height="32" viewBox="0 0 46 32" fill="none" stroke="currentColor" stroke-width="4"><path d="M2 16C9 5 16 2 23 2s14 3 21 14C37 27 30 30 23 30S9 27 2 16Z"/><circle cx="23" cy="16" r="6.5" fill="currentColor"/></svg>',
+  gear:   '<svg width="42" height="42" viewBox="0 0 42 42" fill="currentColor"><path d="M17 1h8l1 6 5 2 5-4 6 6-4 5 2 5 6 1v8l-6 1-2 5 4 5-6 6-5-4-5 2-1 6h-8l-1-6-5-2-5 4-6-6 4-5-2-5-6-1v-8l6-1 2-5-4-5 6-6 5 4 5-2z"/><circle cx="21" cy="21" r="7" fill="#0d123e"/></svg>',
+  term:   '<svg width="44" height="34" viewBox="0 0 44 34" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l13 11L4 27M22 29h18"/></svg>',
+  rocket: '<svg width="40" height="40" viewBox="0 0 40 40" fill="currentColor"><path d="M37 3c-9 0-17 4-22 12l-6 1-6 6 7 1 4 4 1 7 6-6 1-6C30 20 37 12 37 3Zm-9 7a3 3 0 1 1 0 .1z"/><path d="M8 28c-3 1-5 5-5 9 4 0 8-2 9-5z" opacity=".75"/></svg>',
+};
+// posición de cada cartel en px de referencia (de layout.json × 3)
+const SIGN_X = { codex: [58, 268], claude: [285, 498], vision: [518, 730], ultron: [750, 965], gentle: [985, 1200], antigravity: [1220, 1430] };
+
+const fmt = n => n.toLocaleString("en-US");
+
+
+// ---------- V5: modelo de datos (API real o DEMO) y dibujo del HUD ----------
+// DEMO = números copiados de la referencia (se rotulan «DEMO»). Con server.py: /api/telemetry.
+const NAME_OF = Object.fromEntries(AGENTS.map(a => [a.id, a.name]));
+function demoData() {
+  const agents = {};
+  for (const a of AGENTS) agents[a.id] = { agent_id: a.id, name: a.name, measurement: "demo", model_id: null, state: null,
+    state_reason: "datos de demostración", last_event_at: null, freshness_s: null, share_pct: +(a.tokens / DEMO.total * 100).toFixed(1),
+    tokens: { total: a.tokens, input: null, output: null, cached: null, reasoning: null },
+    coverage: { sessions: null, since: null, source: "DEMO" }, notes: ["Números copiados de la imagen de referencia: no son datos reales."] };
+  return { kind: "demo", generated_at: null, totals: { total: DEMO.total, input: DEMO.input, output: DEMO.output }, average: DEMO.avg,
+           partial: false, missing: [], agents };
+}
+function apiData(d) {
+  const agents = {};
+  for (const a of d.agents || []) agents[a.agent_id] = a;
+  return { kind: "api", generated_at: d.generated_at, totals: d.totals, average: d.average_per_agent, partial: d.partial,
+           missing: d.missing || [], agents, received: Date.now() };
+}
+let DATA = demoData();
+// números grandes: completos hasta el umbral (100 M en el total y carteles; 10 M en las celdas chicas del HUD,
+// que en la referencia muestran 9 caracteres); desde ahí, en millones con un decimal. El exacto va en el tooltip.
+function fmtTok(n, limit = 1e8) {
+  if (n === null || n === undefined) return "—";
+  if (n < limit) return n.toLocaleString("en-US");
+  return (n / 1e6).toLocaleString("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 1 }) + " M";
+}
+const exact = n => (n === null || n === undefined) ? "sin dato" : typeof n === "number" ? n.toLocaleString("en-US") : esc(n);
+
+// estructura de carteles y filas (una vez); el contenido lo pone renderData()
+document.getElementById("signs").innerHTML = AGENTS.map((a, i) => {
+  const [x0, x1] = SIGN_X[a.id];
+  return `<div class="sign" style="left:${x0}px;width:${x1 - x0}px;--c:${a.color};--d:${i * 0.9}s" data-agent="${a.id}" tabindex="0" role="button" aria-label="Detalle de ${a.name}">
+    <div class="plate"></div><div class="tip"></div>
+    <div class="ico">${ICONS[a.icon]}</div>
+    <div class="name">${a.name}</div>
+    <div class="tok"></div>
+    <div class="bar"><b></b></div>
+  </div>`;
+}).join("");
+
+function renderData() {
+  const D = DATA, T = D.totals || {};
+  const val = { total: T.total, input: T.input, output: T.output, avg: D.average };
+  const LIMIT = { total: 1e8, input: 1e7, output: 1e7, avg: 1e7 };
+  document.querySelectorAll("[data-k]").forEach(el => { const v = val[el.dataset.k]; el.textContent = fmtTok(v ?? null, LIMIT[el.dataset.k]); el.title = exact(v ?? null); });
+  const badge = document.getElementById("hudPartial");
+  badge.style.display = D.partial ? "" : "none";
+  badge.title = D.partial ? "Faltan datos de: " + D.missing.map(m => NAME_OF[m] || m).join(", ") : "";
+  document.querySelector(".demo").style.display = D.kind === "demo" ? "" : "none";
+  // estado general del centro
+  const st = document.querySelector(".status");
+  // en modo referencia se ve como la imagen aprobada («Operativo»); en vivo, el estado real de la fuente
+  const kind = REF_MODE && D.kind === "demo" ? "ref" : D.kind;
+  st.classList.toggle("demo", kind === "demo"); st.classList.toggle("offline", kind === "offline");
+  st.lastChild.textContent = kind === "demo" ? "Demo" : kind === "offline" ? "Sin conexión" : "Operativo";
+  st.title = D.generated_at ? "Datos de " + new Date(D.generated_at).toLocaleTimeString() : "";
+  const max = Math.max(1, ...AGENT_IDS_ALL.map(id => D.agents[id]?.tokens?.total || 0));
+  for (const id of AGENT_IDS_ALL) {
+    const a = D.agents[id] || {}, tot = a.tokens ? a.tokens.total : null;
+    const sign = document.querySelector(`.sign[data-agent="${id}"]`);
+    sign.classList.toggle("nodata", tot === null);
+    sign.querySelector(".tok").textContent = tot === null ? "sin datos" : `${fmtTok(tot)} tokens`;
+    sign.querySelector(".bar b").style.width = tot === null ? "0" : Math.round(tot / max * 68) + "%";
+    const row = document.querySelector(`.trow[data-agent="${id}"]`);
+    if (row) {
+      row.classList.toggle("nodata", tot === null);
+      row.querySelector(".vl").textContent = tot === null ? "sin datos" : fmtTok(tot);
+      row.querySelector(".vl").title = exact(tot);
+      row.querySelector(".pc").textContent = typeof a.share_pct !== "number" ? "—" : a.share_pct.toFixed(1) + "%";
+      row.querySelector(".br b").style.width = tot === null ? "0" : Math.round(tot / max * 100) + "%";
+    }
+  }
+}
+const AGENT_IDS_ALL = AGENTS.map(a => a.id);
+
+// batería animada (ficticia, decorativa)
+const cells = [...document.querySelectorAll("#battery i")];
+let charge = DEMO.battery;
+function drawBattery() { cells.forEach((c, i) => c.classList.toggle("on", charge > i * 20)); document.getElementById("pct").textContent = Math.round(charge) + "%"; }
+drawBattery();
+
+// Zzz flotantes
+const stage = document.getElementById("stage");
+for (let i = 0; i < 3; i++) {
+  const z = document.createElement("div"); z.className = "zzz"; z.textContent = "z";
+  z.style.left = (1504 + i * 15) + "px"; z.style.top = (342 - i * 13) + "px"; z.style.fontSize = (22 + i * 7) + "px"; z.textContent = i ? "Z" : "z";
+  z.style.animationDelay = (i * 1) + "s"; stage.appendChild(z);
+}
+
+// ----- panel «Tokens por Agente» -----
+// % y valores: los pone renderData() (V5); acá solo la estructura de las filas
+document.getElementById("trows").innerHTML = AGENTS.map((a, i) => `
+  <div class="trow" data-agent="${a.id}" tabindex="0" role="button" aria-label="Detalle de ${a.name}" style="position:absolute;left:28px;top:${55 + i * 50.6}px;--c2:${a.color}">
+    <img class="av" src="assets/avatar_${a.id}.png" alt="">
+    <div class="nm">${a.name}</div>
+    <div class="br"><b></b></div>
+    <div class="vl"></div>
+    <div class="pc"></div>
+  </div>`).join("");
+renderData();
+
+// ----- panel «Actividad Actual» -----
+const ACT_ICONS = {
+  monitor: '<svg width="44" height="34" viewBox="0 0 44 34" fill="none" stroke="#36e9ff" stroke-width="3.5" style="filter:drop-shadow(0 0 3px #36e9ff)"><rect x="3" y="3" width="38" height="22" rx="2"/><path d="M15 31h14M22 25v6"/></svg>',
+  pad:     '<svg width="46" height="34" viewBox="0 0 46 34" style="filter:drop-shadow(0 0 3px #36e9ff)"><path d="M12 5h22c6 0 10 6 11 14s-2 13-7 13c-4 0-6-5-9-5H17c-3 0-5 5-9 5S0 27 1 19 6 5 12 5Z" fill="#36e9ff"/><path d="M11 13v8M7 17h8" stroke="#0b1446" stroke-width="3"/><circle cx="32" cy="14" r="2.4" fill="#0b1446"/><circle cx="36" cy="19" r="2.4" fill="#0b1446"/></svg>',
+  mug:     '<svg width="42" height="34" viewBox="0 0 42 34" style="filter:drop-shadow(0 0 3px #ffc21f)"><path d="M5 5h26v18a7 7 0 0 1-7 7H12a7 7 0 0 1-7-7Z" fill="#ffc21f"/><path d="M31 9h4a5 5 0 0 1 0 10h-4" stroke="#ffc21f" stroke-width="3.5" fill="none"/><path d="M18 11c-2 3-4 5-4 8a4 4 0 0 0 8 0c0-3-2-5-4-8Z" fill="#7a4a00"/></svg>',
+  bolt:    '<svg width="40" height="36" viewBox="0 0 40 36" style="filter:drop-shadow(0 0 4px #ffd21f)"><path d="M24 1 8 21h10l-4 14L32 13H21z" fill="#ffd21f"/></svg>',
+};
+const ACTIVITY = [
+  { icon: "monitor", color: "#34e35b", text: "4 agentes trabajando" },
+  { icon: "pad",     color: "#c46bff", text: "1 agente jugando" },
+  { icon: "mug",     color: "#ffd21f", text: "1 agente en recreo" },
+  { icon: "bolt",    color: "#36e9ff", text: "1 agente recargando" },
+];
+document.getElementById("arows").innerHTML = ACTIVITY.map((r, i) => `
+  <div class="arow" style="top:${62 + i * 35.6}px;color:${r.color}">${ACT_ICONS[r.icon]}<i class="dot"></i><span style="color:#f4f7ff">${r.text}</span></div>
+  ${i < 3 ? `<i style="position:absolute;left:24px;right:24px;top:${88 + i * 35.6}px;height:1px;background:rgba(80,130,255,.35)"></i>` : ""}`).join("");
+
+// ----- TV: arcade espacial (decorativo). La pantalla tiene resolución propia: 1 píxel = 2 px de referencia,
+//       como el arte de la TV en la referencia. Se recorta al trapecio de la pantalla (perspectiva). -----
+const tv = document.getElementById("tv").getContext("2d");
+const TW = 92, TH = 68;
+let seed = 7; const rnd = () => MEDIR ? ((seed = (seed * 16807) % 2147483647) / 2147483647) : Math.random();
+const stars = Array.from({ length: 26 }, () => [rnd() * TW, rnd() * TH, rnd()]);
+const SPR = {   // 1 blanco/rosa · 2 violeta · 3 rojo/naranja
+  inv:   ["001000100", "000101000", "011111110", "110111011", "111111111", "111111111", "011010110", "010000010"],
+  heart: ["01100110", "11111111", "11111111", "11111111", "01111110", "00111100", "00011000"],
+  ship:  ["00000000000100000000000", "00000000001110000000000", "00000000001110000000000", "00000000011111000000000",
+          "00000000011211000000000", "00000000011111000000000", "00010000111111100001000", "00011000111211100011000",
+          "00011101111111110111000", "00111111111111111111100", "01111111111111111111110", "11111111112221111111111",
+          "11111001111111110011111", "11110000111111100001111", "11100000011311000000111", "11000000001310000000011",
+          "00000000000300000000000"],
+  spark: ["0001000", "0001000", "0011100", "0013100", "0133310", "1333331", "0133310", "0013100", "0011100", "0001000", "0001000"],
+  win:   ["1111111", "1221221", "1221221", "1221221", "1111111", "1221221", "1221221", "1221221", "1111111"],
+};
+// las filas se estiran ×1,25: la perspectiva de la pantalla comprime el contenido en vertical
+function spr(m, x, y, pal, sy = 1.25) {
+  for (let j = 0; j < m.length; j++) {
+    const y0 = Math.round(j * sy), y1 = Math.round((j + 1) * sy);
+    for (let i = 0; i < m[j].length; i++) {
+      const c = pal[m[j][i]]; if (c) { tv.fillStyle = c; tv.fillRect(x + i, y + y0, 1, y1 - y0); }
+    }
+  }
+}
+function drawTV(t) {
+  const gr = tv.createLinearGradient(0, 0, 0, TH); gr.addColorStop(0, "#1c1a70"); gr.addColorStop(1, "#5a2cc0");
+  tv.fillStyle = gr; tv.fillRect(0, 0, TW, TH);
+  for (const s of stars) { tv.fillStyle = s[2] > .6 ? "#ff9ae0" : "#8a6cff"; tv.fillRect(Math.floor(s[0]), Math.floor((s[1] + t / 90 * (0.4 + s[2])) % TH), 1, 1); }
+  // posiciones medidas sobre la referencia y pasadas a coordenadas de la pantalla en perspectiva
+  const ox = Math.round(Math.sin(t / 900) * 2), oy = Math.floor(t / 650) % 2;
+  for (let k = 0; k < 3; k++) spr(SPR.inv, 6 + k * 11 + ox, 3 + oy, { 1: "#ff5fc0" });
+  for (let k = 0; k < 3; k++) spr(SPR.heart, 59 + k * 9, 4, { 1: "#ff2f55" });
+  const glow = 0.65 + 0.35 * Math.sin(t / 300);
+  spr(SPR.spark, 21, 20, { 1: `rgba(255,70,50,${glow})`, 3: "#ffd0a0" });
+  const sx = 33 + Math.round(Math.sin(t / 900) * 6);
+  spr(SPR.spark, sx + 8, 17 + (Math.floor(t / 200) % 2), { 1: "#ff4a3a", 3: "#ffb36b" });
+  spr(SPR.ship, sx, 35, { 1: "#f6f3ff", 2: "#9a6bff", 3: "#ff4a3a" });
+  spr(SPR.win, 3, 50, { 1: "#e8f0ff", 2: "#3b55c8" });
+  spr(SPR.win, 75, 47, { 1: "#e8f0ff", 2: "#3b55c8" });
+}
+
+// el contenido de la TV sigue la perspectiva de la pantalla: matriz proyectiva rectángulo -> trapecio
+(function tvPerspective() {
+  const q = window.LAYOUT.panels.tv_quad.map(([x, y]) => [x - 1244, y - 481]);   // TL, TR, BR, BL
+  const w = 184, h = 136;
+  const [[x0, y0], [x1, y1], [x2, y2], [x3, y3]] = q;
+  const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2, sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  const den = dx1 * dy2 - dx2 * dy1;
+  const g = (sx * dy2 - dx2 * sy) / den, hh = (dx1 * sy - sx * dy1) / den;
+  const a = x1 - x0 + g * x1, b = x3 - x0 + hh * x3, d = y1 - y0 + g * y1, e = y3 - y0 + hh * y3;
+  // de cuadrado unidad a trapecio; se escala por 1/w, 1/h
+  const m = [a / w, d / w, 0, g / w,  b / h, e / h, 0, hh / h,  0, 0, 1, 0,  x0, y0, 0, 1];
+  document.getElementById("tv").style.transform = `matrix3d(${m.join(",")})`;
+})();
+
+// ----- navegación (tools/escena/nav.py → assets/nav.js) y robot de prueba -----
+// El robot de prueba usa la pose «caminando» de la referencia a escala fija: sirve para verificar
+// rutas y profundidad (pasa detrás de escritorios, plantas, sillones, mesa…). El robot animado
+// definitivo y su escala por perspectiva son de V3.
+const NAV = window.NAV;
+const navGraph = {};
+for (const [a, b] of NAV.edges) { (navGraph[a] ||= []).push(b); (navGraph[b] ||= []).push(a); }
+const navPt = id => NAV.nodes[id] || NAV.spots[id];
+function route(from, to) {                         // camino más corto en cantidad de tramos (BFS)
+  const prev = { [from]: null }, q = [from];
+  while (q.length) { const u = q.shift(); if (u === to) break;
+    for (const v of navGraph[u] || []) if (!(v in prev)) { prev[v] = u; q.push(v); } }
+  const path = []; for (let u = to; u != null; u = prev[u]) path.unshift(u);
+  return path[0] === from ? path : [];
+}
+// Robot de prueba con el robot animado de V3 (assets/robots, generado por tools/robots/robot.py):
+// camina en 4 direcciones, usa tamaño S en el piso superior y L abajo, y en el destino hace la actividad.
+const ROB = window.ROBOTS, AGENT_IDS = ["codex", "claude", "vision", "ultron", "gentle", "antigravity"];
+const ACTIVITY_POSE = { oil: "oil", sofa: "sit", chess_a: "chess", chess_b: "chess", recarga: "sleep",
+                        paseo_holo: "wave", paseo_lounge: "wave" };
+const robotSheets = {};
+const tester = {
+  active: false, pts: [], ids: [], seg: 0, pos: null, dir: 1, speed: 70, pause: 0, pose: "walk_down",
+  start(t, seat, act) {
+    const acts = Object.keys(NAV.spots).filter(k => !k.startsWith("seat_"));
+    const seats = Object.keys(NAV.spots).filter(k => k.startsWith("seat_"));
+    seat = seat || seats[Math.floor(Math.random() * seats.length)]; act = act || acts[Math.floor(Math.random() * acts.length)];
+    this.agent = seat.slice(5); this.act = act;
+    this.ids = route(seat, act).concat(route(act, seat).slice(1));
+    this.pts = this.ids.map(navPt); this.seg = 0; this.pos = this.pts[0].slice(); this.last = t; this.active = true;
+    this.pause = 0; this.paused = false;
+    document.getElementById("testInfo").textContent = `Recorrido de prueba: ${this.agent} → ${act} → vuelta`;
+  },
+  item(t) {
+    const dt = Math.min(0.05, (t - this.last) / 1000); this.last = t;
+    let step = this.speed * dt, mx = 0, my = 0;
+    if (this.pause > 0) { this.pause -= dt; step = 0; }
+    while (step > 0 && this.seg < this.pts.length - 1) {
+      const [bx, by] = this.pts[this.seg + 1], dx = bx - this.pos[0], dy = by - this.pos[1], d = Math.hypot(dx, dy);
+      mx = dx; my = dy;
+      if (d <= step) {
+        this.pos = [bx, by]; this.seg++; step -= d;
+        if (this.ids[this.seg] === this.act) { this.pause = 4; break; }          // hace la actividad 4 s
+      } else { this.pos[0] += dx / d * step; this.pos[1] += dy / d * step; step = 0; }
+    }
+    if (this.seg >= this.pts.length - 1 && this.pause <= 0) this.start(t);
+    let pose;
+    if (this.pause > 0) pose = ACTIVITY_POSE[this.act] || "idle";
+    else if (Math.abs(mx) >= Math.abs(my) * 0.8) { pose = "walk_side"; if (Math.abs(mx) > 0.5) this.dir = mx < 0 ? -1 : 1; }
+    else pose = my > 0 ? "walk_down" : "walk_up";
+    const size = this.pos[1] < 470 ? "S" : "L";
+    let sh = ROB.sheets[`${this.agent}_${size}`], frames = sh.poses[pose];
+    if (!frames) { pose = "idle"; frames = sh.poses.idle; }
+    const fr = frames[Math.floor(t / ROB.poses[pose].ms) % frames.length], img = robotSheets[`${this.agent}_${size}`];
+    const fx = Math.round(this.pos[0] / 3), fy = Math.round(this.pos[1] / 3);
+    const flip = pose === "walk_side" && this.dir < 0;
+    // en el ajedrez la mesa tapa las piernas (sin exención de mesa); sofá y recarga: sobre el mueble
+    const exempt = { sit: ["sofa", "popcorn"], chess: ["armchair_a", "armchair_b"], sleep: [], oil: ["oil_machine"] }[pose] || [];
+    return { base: Math.max(fy, ...exempt.map(i => layout0.occluders[i] ? layout0.occluders[i].base + 0.01 : fy)), draw: () => {
+      if (flip) { ctx.save(); ctx.scale(-1, 1); ctx.drawImage(img, fr.x, fr.y, fr.w, fr.h, -(fx - (fr.w - fr.fx)) - fr.w, fy - fr.fy, fr.w, fr.h); ctx.restore(); }
+      else ctx.drawImage(img, fr.x, fr.y, fr.w, fr.h, fx - fr.fx, fy - fr.fy, fr.w, fr.h);
+    } };
+  },
+};
+const layout0 = window.LAYOUT;
+let drawNav = () => {};
+
+// ----- modo vivo (V4) -----
+// ?modo=referencia (o ?medir=1) muestra la composición exacta de la referencia (para medir fidelidad).
+// Por defecto: modo vivo — cada robot se mueve según el estado de su agente.
+const PARAMS = new URLSearchParams(location.search);
+const LIVE = !MEDIR && PARAMS.get("modo") !== "referencia";
+const TIME_SCALE = Math.max(1, Math.min(20, +PARAMS.get("vel") || 1));   // ?vel=4: acelera para revisar (solo pruebas)
+const sim = CentroSim.createSim(NAV, AGENT_IDS, { reducedMotion: REDUCED });
+// Fuente de estado: la API real (/api/telemetry, con python server.py) o, si no hay, un demo con controles.
+// Auditoría URG-02 y PRE-01: una sola consulta a la vez, con tiempo máximo; si falla, «Sin conexión» y reintento
+// automático (5 s → 10 → 20 → 30 s). Solo un 404 (hosting sin API, p. ej. la web pública) activa el demo.
+const POLL_MS = 5000, FETCH_TIMEOUT_MS = 8000, RETRY_MAX_MS = 30000;
+function emptyData(reason) {
+  return apiData({ agents: AGENT_IDS.map(id => ({ agent_id: id, name: NAME_OF[id], state: "unknown", state_reason: reason,
+    tokens: null, measurement: "no_disponible", coverage: {}, notes: [] })), totals: null, average_per_agent: null, partial: true, missing: AGENT_IDS });
+}
+const source = {
+  kind: "demo", forced: {}, demo: {}, nextChange: {}, busy: false, retryMs: POLL_MS,
+  // Devuelve { status, data }. El tiempo máximo cubre la respuesta COMPLETA (cabeceras y cuerpo). Reauditoría PRE-01.
+  async fetchApi() {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const r = await fetch("/api/telemetry", { cache: "no-store", signal: ctl.signal });
+      return { status: r.status, data: r.ok ? await r.json() : null };
+    } finally { clearTimeout(to); }
+  },
+  async init() {
+    if (location.protocol.startsWith("http")) {
+      let r = null;
+      try { r = await this.fetchApi(); } catch (e) { /* servidor que no responde o respuesta inválida: se reintenta */ }
+      if (!(r && r.status === 404)) {
+        this.kind = "api";
+        try { if (!r || !r.data) throw new Error(r ? r.status : "sin respuesta"); this.apply(r.data); }
+        catch (e) { this.fail(); }
+        this.schedule();
+      }
+    }
+    if (this.kind === "demo") for (const a of AGENT_IDS) { this.demo[a] = "working"; this.nextChange[a] = 8 + Math.random() * 30; }
+    renderSourceUI();
+  },
+  schedule() { setTimeout(() => this.poll(), this.offline ? this.retryMs : POLL_MS); },
+  async poll() {
+    if (this.busy) return;
+    this.busy = true;
+    try {
+      const r = await this.fetchApi(); if (!r.data) throw new Error(r.status);
+      this.apply(r.data); this.retryMs = POLL_MS;
+    } catch (e) {
+      this.fail(); this.retryMs = Math.min(RETRY_MAX_MS, this.retryMs * 2);
+    } finally { this.busy = false; this.schedule(); }
+  },
+  fail() {                          // sin conexión: se conservan los últimos números reales (nunca los del demo), todo pasa a «sin datos»
+    this.offline = true;
+    DATA = Object.assign({}, DATA.kind === "api" || DATA.kind === "offline" ? DATA : emptyData("sin conexión con el servidor"), { kind: "offline" });
+    renderData();
+    sim.setStates(Object.fromEntries(AGENT_IDS.map(a => [a, this.forced[a] || "unknown"])));
+    if (sound) sound.connection(false);
+  },
+  reapply() {                       // aplica al instante un estado forzado (sin esperar la próxima consulta)
+    if (this.kind === "demo") return;
+    sim.setStates(Object.fromEntries(AGENT_IDS.map(a => [a, this.forced[a] ||
+      (this.offline ? "unknown" : ((DATA.agents[a] || {}).state || "unknown"))])));
+  },
+  apply(d) {
+    this.offline = false; DATA = apiData(d); renderData();
+    if (sound) sound.connection(true);
+    sim.setStates(Object.fromEntries((d.agents || []).map(a => [a.agent_id, this.forced[a.agent_id] || a.state])));
+  },
+  tick(dt) {
+    if (this.kind !== "demo") return;
+    for (const a of AGENT_IDS) {
+      if (!this.forced[a]) {               // automático: alterna trabajo y ocio con tiempos razonables
+        this.nextChange[a] -= dt;
+        if (this.nextChange[a] <= 0) {
+          this.demo[a] = this.demo[a] === "working" ? "idle" : "working";
+          this.nextChange[a] = this.demo[a] === "working" ? 25 + Math.random() * 60 : 45 + Math.random() * 120;
+        }
+      }
+    }
+    sim.setStates(Object.fromEntries(AGENT_IDS.map(a => [a, this.forced[a] || this.demo[a]])));
+  },
+};
+// ----- sonido (PRODUCT.md §5.4): solo en modo vivo, todo apagado por defecto -----
+let sound = null;
+if (LIVE && window.CentroSound) {
+  let store = null; try { store = window.localStorage; } catch (e) { /* sin almacenamiento */ }
+  sound = CentroSound.createSound({ storage: store });
+  const setStates = sim.setStates.bind(sim);           // cada cambio de estado real pasa por el detector
+  sim.setStates = st => { setStates(st); sound.observe(st, performance.now()); };
+  addEventListener("pointerdown", () => sound.unlock(), { once: true });
+  addEventListener("keydown", () => sound.unlock(), { once: true });
+}
+const SND_TXT = { done: "Terminó", start: "Empezó", offline: "Sin conexión", ambient: "Ambiente" };
+const SND_HELP = { done: "Arpegio con el tono del agente cuando pasa de trabajando a en reposo",
+  start: "Dos blips cuando un agente empieza a trabajar", offline: "Aviso cuando se pierde la conexión con el servidor",
+  ambient: "Zumbido suave de sala de servidores, continuo" };
+const SPK = '<svg width="18" height="16" viewBox="0 0 18 16" fill="currentColor" aria-hidden="true"><path d="M1 5h4l5-4v14l-5-4H1z"/><path d="M13 4.5c1.4 1 1.4 6 0 7M15.5 2c2.6 2.2 2.6 9.8 0 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+function renderSoundUI() {
+  const box = document.getElementById("soundCtl");
+  if (!sound) { box.style.display = "none"; return; }
+  const c = sound.get();
+  box.innerHTML = `<button id="sndOn" aria-pressed="${c.on}">${SPK}Sonido ${c.on ? "encendido" : "apagado"}</button>
+    <label>Volumen <input id="sndVol" type="range" min="0" max="100" value="${Math.round(c.volume * 100)}" aria-label="Volumen"></label>
+    <fieldset ${c.on ? "" : "disabled"}>` + sound.KINDS.map(k => `
+      <span class="snd"><label title="${SND_HELP[k]}"><input type="checkbox" data-snd="${k}" ${c[k] ? "checked" : ""}> ${SND_TXT[k]}</label>${k === "ambient" ? "" : `<button class="try" data-try="${k}" aria-label="Probar el sonido ${SND_TXT[k]}">probar</button>`}</span>`).join("") +
+    `</fieldset>`;
+  box.querySelector("#sndOn").onclick = () => { sound.set("on", !sound.get().on); renderSoundUI(); };
+  box.querySelector("#sndVol").oninput = e => sound.set("volume", e.target.value / 100);
+  box.querySelectorAll("[data-snd]").forEach(el => el.onchange = () => sound.set(el.dataset.snd, el.checked));
+  box.querySelectorAll("[data-try]").forEach(el => el.onclick = () => sound.play(el.dataset.try, "codex", true));
+}
+renderSoundUI();
+function renderSourceUI() {
+  const box = document.getElementById("liveCtl");
+  if (!LIVE) { box.innerHTML = `<a href="?" style="color:#7fe3ff">Volver al modo vivo</a>`; return; }
+  const NM = { codex: "Codex", claude: "Claude", vision: "Vision", ultron: "Ultron", gentle: "Gentle", antigravity: "Antigravity" };
+  box.innerHTML = `<span>${source.kind === "api" ? "Estado real (API)" : "Demo"} · forzar estado:</span>` + AGENT_IDS.map(a => `
+    <label>${NM[a]} <select data-a="${a}"><option value="">auto</option><option value="working">trabajando</option>
+    <option value="idle">inactivo</option><option value="unknown">sin datos</option></select></label>`).join("") +
+    ` <a href="?modo=referencia" style="color:#7fe3ff">Modo referencia</a>`;
+  box.querySelectorAll("select").forEach(sel => sel.onchange = () => { source.forced[sel.dataset.a] = sel.value || undefined; source.reapply(); });
+}
+function updateActivityPanel(c) {
+  const rows = document.querySelectorAll("#arows .arow span");
+  if (rows.length < 4) return;
+  const p = (n, s, pl) => `${n} ${n === 1 ? s : pl}`;
+  rows[0].textContent = c.unknown ? `${c.working} trabajando · ${c.unknown} sin datos`      // corto: entra en el panel
+                                  : p(c.working, "agente trabajando", "agentes trabajando");
+  rows[1].textContent = p(c.playing, "agente jugando", "agentes jugando");
+  rows[2].textContent = p(c.break, "agente en recreo", "agentes en recreo");
+  rows[3].textContent = p(c.charging, "agente recargando", "agentes recargando");
+}
+source.init();
+
+// ---------- V5: tooltip (al pasar el mouse) y panel de detalle (clic) por agente ----------
+const STATE_TXT = { working: ["Trabajando", "#34e35b"], idle: ["Inactivo", "#7fe3ff"], unknown: ["Sin datos", "#ff8a5a"] };
+const ACT_TXT = { sofa: "en el sofá", game: "jugando en la mesa", table_wait: "esperando pareja en la mesa", oil: "tomando aceite",
+                  recarga: "recargando en la cápsula", paseo_holo: "paseando", paseo_lounge: "paseando", fist: "festejando" };
+const COLOR_OF = Object.fromEntries(AGENTS.map(a => [a.id, getComputedStyle(document.documentElement).getPropertyValue(a.color.slice(4, -1)).trim()]));
+function ago(iso) {
+  if (!iso) return "sin dato";
+  const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : s < 86400 ? `hace ${Math.round(s / 3600)} h` : `hace ${Math.round(s / 86400)} d`;
+}
+function info(id) {
+  const a = DATA.agents[id] || {}, r = sim.robots[id];
+  const real = DATA.kind === "api" ? (a.state || "unknown") : (r ? r.real : null);
+  return { a, real, sim: r };
+}
+function tipHTML(id) {
+  const { a, real } = info(id), t = a.tokens, [stTxt, stCol] = STATE_TXT[real] || ["—", "#9aa6e6"];
+  const lines = [`<b>${NAME_OF[id]}</b> ${DATA.kind === "demo" ? '<span class="m">· DEMO</span>' : ""}`,
+    `<span class="st" style="color:${stCol}">${stTxt}</span>${a.state_reason && DATA.kind !== "demo" ? ` <span class="m">· ${esc(a.state_reason)}</span>` : ""}`,
+    `<span class="m">Modelo:</span> ${esc(a.model_id || "sin dato")}`,
+    t ? `<span class="m">Tokens:</span> ${exact(t.total)}${t.input !== null && t.input !== undefined ? `<br><span class="m">Entrada</span> ${exact(t.input)} <span class="m">· Salida</span> ${exact(t.output)}` : ""}`
+      : `<span class="m">Tokens:</span> sin datos`,
+    DATA.kind === "api" ? `<span class="m">Último evento:</span> ${ago(a.last_event_at)}` : ""];
+  return lines.filter(Boolean).join("<br>") + `<br><span class="m">Clic para ver el detalle</span>`;
+}
+function detailHTML(id) {
+  const { a, real, sim: r } = info(id), t = a.tokens, [stTxt, stCol] = STATE_TXT[real] || ["—", "#9aa6e6"];
+  const cov = a.coverage || {}, MEAS = { medido: "medido", estimado: "estimado", no_disponible: "no disponible", demo: "DEMO (no es real)" };
+  const home = s => (s || "").replace(/^([A-Za-z]:)?[\\/](Users|home)[\\/][^\\/]+/, "~");
+  const rows = [
+    ["Estado", `<span style="color:${stCol};font-weight:700">${stTxt}</span>${a.state_reason ? ` · ${esc(a.state_reason)}` : ""}`],
+    ["Modelo", esc(a.model_id || "sin dato")],
+    ["Tokens totales", t ? exact(t.total) : "sin datos"],
+    ["Entrada", t && t.input !== null && t.input !== undefined ? `${exact(t.input)} <span style="color:#9aa6e6">(caché ${exact(t.cached)})</span>` : "sin dato"],
+    ["Salida", t && t.output !== null && t.output !== undefined ? `${exact(t.output)} <span style="color:#9aa6e6">(razonamiento ${exact(t.reasoning)})</span>` : "sin dato"],
+    ["Participación", typeof a.share_pct !== "number" ? "—" : a.share_pct.toFixed(1) + "% del total"],
+    ["Medición", MEAS[a.measurement] || esc(a.measurement || "—")],
+    ["Último evento", DATA.kind === "api" ? ago(a.last_event_at) : "sin dato"],
+    ["Cobertura", typeof cov.sessions === "number" && cov.sessions ? `${cov.sessions} ${cov.sessions === 1 ? "sesión" : "sesiones"}${cov.since ? " desde " + new Date(cov.since).toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }) : ""}` : "sin dato"],
+    ["Fuente", esc(home(cov.source) || "—")],
+  ];
+  const act = r && r.real === "idle" && r.activity ? `Ahora ${esc(ACT_TXT[r.activity] || r.activity)} (vida simulada, decorativa).` : "";
+  return `<h2 id="dTitle"><img src="assets/avatar_${id}.png" alt="">${NAME_OF[id]}
+      ${DATA.kind === "demo" ? '<span class="chip" style="background:#ffd21f;color:#0a0f2a">DEMO</span>' : ""}
+      ${DATA.kind === "offline" ? '<span class="chip" style="background:#ff5a5a;color:#0a0f2a">SIN CONEXIÓN</span>' : ""}</h2>
+    <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+    ${Array.isArray(a.notes) && a.notes.length ? `<ul>${a.notes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+    ${act ? `<div class="sim">${act}</div>` : ""}`;
+}
+let detailId = null;
+function openDetail(id) {
+  detailId = id; const d = document.getElementById("detail");
+  d.style.setProperty("--dc", COLOR_OF[id] || "#2f7dff");
+  const box = document.getElementById("dIn");
+  box.innerHTML = `<button class="x" aria-label="Cerrar" onclick="closeDetail()">✕</button><div id="dBody"></div>`;
+  refreshDetail(); d.style.display = "block"; hideTip();
+  box.querySelector(".x").focus();
+}
+function closeDetail() { detailId = null; document.getElementById("detail").style.display = "none"; }
+// Se actualiza solo el contenido y solo si cambió: el botón «Cerrar» (y el foco del teclado) se conserva. Auditoría PRE-08.
+function refreshDetail() {
+  const body = document.getElementById("dBody"); if (!detailId || !body) return;
+  const html = detailHTML(detailId); if (body.dataset.html !== html) { body.innerHTML = html; body.dataset.html = html; }
+}
+setInterval(refreshDetail, 2000);
+const tip = document.getElementById("tip");
+function showTip(id, x, y) {
+  tip.innerHTML = tipHTML(id); tip.style.setProperty("--tc", COLOR_OF[id] || "#2f7dff"); tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(innerWidth - w - 8, x + 16) + "px"; tip.style.top = Math.min(innerHeight - h - 8, y + 16) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+// ¿qué agente está bajo el puntero? carteles y filas por el DOM; robots por su posición en la escena
+function agentAt(ev) {
+  const el = ev.target.closest && ev.target.closest("[data-agent]");
+  if (el) return el.dataset.agent;
+  if (ev.target.closest && ev.target.closest(".panel,.hud,#detail")) return null;
+  const fr = document.getElementById("frame").getBoundingClientRect(), k = fr.width / 1671;
+  const x = (ev.clientX - fr.left) / k, y = (ev.clientY - fr.top) / k;
+  const L = window.LAYOUT;
+  if (LIVE) {
+    for (const r of sim.snapshot()) {
+      if (r.mode === "desk" && (r.pose === "desk" || r.pose === "desk_idle")) {
+        const b = L.robots[r.agent]; if (x >= b.x * 3 && x <= (b.x + b.w) * 3 && y >= b.y * 3 && y <= (b.y + b.h) * 3) return r.agent;
+      } else if (Math.abs(x - r.pos[0]) < 45 && y <= r.pos[1] + 4 && y >= r.pos[1] - 150) return r.agent;
+    }
+  } else {
+    for (const id of AGENT_IDS) { const b = L.robots[id]; if (b && x >= b.x * 3 && x <= (b.x + b.w) * 3 && y >= b.y * 3 && y <= (b.y + b.h) * 3) return id; }
+  }
+  return null;
+}
+const frameEl = document.getElementById("frame");
+frameEl.addEventListener("mousemove", ev => {
+  const id = agentAt(ev); frameEl.style.cursor = id ? "pointer" : "";
+  if (id && !detailId) showTip(id, ev.clientX, ev.clientY); else hideTip();
+});
+frameEl.addEventListener("mouseleave", hideTip);
+frameEl.addEventListener("click", ev => {
+  if (ev.target.closest("#detail")) return;
+  const id = agentAt(ev); if (id) openDetail(id); else closeDetail();
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape") closeDetail();
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.dataset && ev.target.dataset.agent) { ev.preventDefault(); openDetail(ev.target.dataset.agent); }
+});
+
+// ----- canvas: capas pixel -----
+const cv = document.getElementById("scene"), ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+// Si una imagen falta o está dañada, se avisa cuál en lugar de quedar la escena en negro. Auditoría PRE-07.
+const load = src => new Promise((r, j) => { const im = new Image(); im.onload = () => r(im); im.onerror = () => j(new Error(src)); im.src = src; });
+function sceneError(e) {
+  const el = document.createElement("div"); el.id = "sceneError"; el.setAttribute("role", "alert");
+  el.style.cssText = "position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:99;background:#1a0f2e;color:#fff;border:2px solid #ff5a5a;padding:14px 20px;border-radius:6px;font:600 18px 'Barlow Semi Condensed',sans-serif;max-width:90vw";
+  el.textContent = `No se pudo cargar la escena: falta o está dañado «${e && e.message ? e.message : "un recurso"}». Revisá la carpeta prototype/escena/assets.`;
+  document.body.appendChild(el); console.error("[Centro] recurso faltante", e);
+}
+const state = { empty: false, archOnly: false, typing: !MEDIR && !REDUCED };
+
+(async () => {
+  const layout = window.LAYOUT;
+  const back = await load("assets/arch_back.png"), front = await load("assets/arch_front.png");
+  const robots = {};
+  for (const id of Object.keys(layout.robots)) robots[id] = await load(`assets/robot_${id}.png`);
+  const booths = {};
+  for (const id of Object.keys(layout.booths)) booths[id] = await load(`assets/booth_${id}.png`);
+  const chairs = {};
+  for (const id of Object.keys(layout.chairs)) chairs[id] = await load(`assets/chair_${id}.png`);
+  const poses = {};
+  for (const id of Object.keys(layout.poses)) poses[id] = await load(`assets/pose_${id}.png`);
+  const chev = await load("assets/fx_chevrons.png");
+  const occ = {};
+  for (const id of Object.keys(layout.occluders)) occ[id] = await load(`assets/occ_${id}.png`);
+  const navMask = await load("assets/nav_mask.png");
+  for (const a of AGENT_IDS) for (const z of "SL") robotSheets[`${a}_${z}`] = await load("assets/" + ROB.sheets[`${a}_${z}`].file);
+  const nc = document.getElementById("navc"), nx = nc.getContext("2d");
+  drawNav = () => {
+    if (!state.nav || drawNav.done) return;
+    drawNav.done = true;
+    nx.clearRect(0, 0, 1671, 942); nx.drawImage(navMask, 0, 0, 1671, 942);
+    nx.lineWidth = 3; nx.strokeStyle = "rgba(255,230,60,.95)";
+    for (const [a, b] of NAV.edges) { const p = navPt(a), q = navPt(b); nx.beginPath(); nx.moveTo(...p); nx.lineTo(...q); nx.stroke(); }
+    nx.font = "600 15px 'Barlow SC', sans-serif";
+    for (const [id, [x, y]] of Object.entries(NAV.spots)) {
+      nx.fillStyle = "#ff3fd0"; nx.beginPath(); nx.arc(x, y, 7, 0, 7); nx.fill();
+      nx.fillStyle = "#fff"; nx.fillText(id, x + 9, y - 6);
+    }
+    nx.fillStyle = "#ffe63c"; for (const [x, y] of Object.values(NAV.nodes)) { nx.beginPath(); nx.arc(x, y, 4, 0, 7); nx.fill(); }
+  };
+  const fg = await load("assets/fg_plants.png");
+  const br = document.getElementById("brain"), bi = layout.icons.brain;   // posición calcada (px lógicos ×3, relativo al HUD)
+  Object.assign(br.style, { left: (bi.x * 3 - 8) + "px", top: (bi.y * 3) + "px", width: bi.w * 3 + "px", height: bi.h * 3 + "px" });
+  const fctx = document.getElementById("fg").getContext("2d");
+  fctx.imageSmoothingEnabled = false; fctx.drawImage(fg, 0, 0);
+  const phase = Object.fromEntries(Object.keys(robots).map(id => [id, MEDIR ? 0 : Math.random() * 1000]));
+  const glow = { codex: "34,214,240", claude: "255,138,31", vision: "255,210,31", ultron: "52,227,91", gentle: "255,79,216", antigravity: "180,107,255" };
+
+  // ---------- profundidad: robots y oclusores se dibujan ordenados por su línea de base (pies) ----------
+  // Un robot sentado o acostado SOBRE un mueble no queda detrás de ese mueble (exenciones).
+  const EXEMPT = { oil: ["oil_machine"], sofa: ["sofa", "popcorn"], chess_a: ["armchair_a", "table"],
+                   chess_b: ["armchair_b", "table"] };
+  const baseAfter = (own, ids) => Math.max(own, ...ids.map(i => (layout.occluders[i] ? layout.occluders[i].base + 0.01 : own)));
+
+  // ---------- modo vivo (V4): motor sim.js + fuente de estado (API real o demo) ----------
+  const liveWorking = {};
+  const LIVE_EXEMPT = { sit: ["sofa", "popcorn"], chess: ["armchair_a", "armchair_b"], uno: ["armchair_a", "armchair_b"], oil: ["oil_machine"] };
+  let lastT = null;
+  function liveFrame(t, items) {
+    const dt = (lastT === null ? 0 : Math.min(0.1, (t - lastT) / 1000)) * TIME_SCALE; lastT = t;
+    source.tick(dt);
+    sim.step(dt);
+    let bubbleAt = null, sleeping = false;
+    for (const r of sim.snapshot()) {
+      liveWorking[r.agent] = r.mode === "desk" && r.pose === "desk";
+      const seatCal = layout.robots[r.agent];
+      if (r.mode === "desk" && (r.pose === "desk" || r.pose === "desk_idle")) {
+        // en su box: el robot calcado de la referencia (tipea solo si trabaja)
+        const dy = r.pose === "desk" && state.typing ? (Math.floor((t + phase[r.agent]) / 260) % 2 ? -1 : 0) : 0;
+        items.push({ base: seatCal.y + seatCal.h, draw: () => { const b = layout.booths[r.agent]; ctx.drawImage(booths[r.agent], b.x, b.y); ctx.drawImage(robots[r.agent], seatCal.x, seatCal.y + dy); } });
+        continue;
+      }
+      const pose = r.pose === "desk" ? "idle" : r.pose;
+      const size = pose === "sleep" || pose === "type" ? "S" : (pose === "unknown" && r.mode === "desk" ? "S" : r.size);
+      const sh = ROB.sheets[`${r.agent}_${size}`], frames = sh.poses[pose] || sh.poses.idle;
+      const fr = frames[Math.floor(animT(t) / (ROB.poses[pose] ? ROB.poses[pose].ms : 500)) % frames.length], img = robotSheets[`${r.agent}_${size}`];
+      const fx = Math.round(r.pos[0] / 3), fy = Math.round(r.pos[1] / 3);
+      const flip = r.dir < 0 && (pose === "walk_side" || pose === "chess" || pose === "uno");
+      const ex = LIVE_EXEMPT[pose] || [];
+      if (pose === "sleep") sleeping = true;
+      if (!bubbleAt && pose.startsWith("walk") && size === "L") bubbleAt = [r.pos[0], r.pos[1] - fr.fy * 3];
+      items.push({ base: Math.max(fy, ...ex.map(i => layout.occluders[i] ? layout.occluders[i].base + 0.01 : fy)), draw: () => {
+        if (flip) { ctx.save(); ctx.scale(-1, 1); ctx.drawImage(img, fr.x, fr.y, fr.w, fr.h, -(fx + fr.fx), fy - fr.fy, fr.w, fr.h); ctx.restore(); }
+        else ctx.drawImage(img, fr.x, fr.y, fr.w, fr.h, fx - fr.fx, fy - fr.fy, fr.w, fr.h);
+      } });
+    }
+    // burbuja musical sobre un robot que camina por el piso inferior; «Zzz» solo si alguien duerme
+    const bub = document.querySelector(".bubble");
+    bub.style.visibility = bubbleAt && !state.empty ? "" : "hidden";
+    if (bubbleAt) { bub.style.left = (bubbleAt[0] + 12) + "px"; bub.style.top = (bubbleAt[1] - 40) + "px"; }
+    document.querySelectorAll(".zzz").forEach(z => z.style.visibility = sleeping ? "" : "hidden");
+    if (Math.floor(t / 1000) !== liveFrame.sec) { liveFrame.sec = Math.floor(t / 1000); updateActivityPanel(sim.counts()); }
+  }
+
+  function frame(t) {
+    ctx.clearRect(0, 0, 557, 314);
+    ctx.drawImage(back, 0, 0);
+    for (const [id, c] of Object.entries(layout.chairs)) ctx.drawImage(chairs[id], c.x, c.y);
+    const items = [];      // { base, draw() }
+    if (!state.archOnly && LIVE) {
+      liveFrame(t, items);                 // modo vivo: robots según el estado de cada agente (V4)
+    } else if (!state.archOnly) {
+      for (const [id, r] of Object.entries(layout.robots)) {
+        if (state.empty) continue;
+        const sleeping = id === "recarga";
+        let dy = 0;
+        if (state.typing) dy = sleeping ? (Math.sin((t + phase[id]) / 900) > 0.6 ? -1 : 0) : (Math.floor((t + phase[id]) / 260) % 2 ? -1 : 0);
+        // el parche de píxeles originales (box ocupado) va JUNTO con su robot, a su misma profundidad
+        items.push({ base: r.y + r.h, draw: () => { const b = layout.booths[id]; if (b) ctx.drawImage(booths[id], b.x, b.y); ctx.drawImage(robots[id], r.x, r.y + dy); } });
+      }
+      // robots del piso inferior en sus poses de ocio (estado de la referencia)
+      if (!state.empty) for (const [id, r] of Object.entries(layout.poses)) {
+        let dy = 0;
+        if (state.typing) {
+          if (id === "walk") dy = Math.floor(t / 300) % 2 ? -1 : 0;
+          else if (id === "oil") dy = Math.sin(t / 1100) > 0.7 ? -1 : 0;
+          else if (id.startsWith("chess")) dy = Math.sin((t + phase.codex * (id === "chess_b")) / 800) > 0.5 ? -1 : 0;
+          else if (id === "sofa") dy = Math.floor(t / 420) % 2 ? -1 : 0;
+        }
+        items.push({ base: baseAfter(r.y + r.h, EXEMPT[id] || []), draw: () => { const b = layout.booths[id]; ctx.drawImage(booths[id], b.x, b.y); ctx.drawImage(poses[id], r.x, r.y + dy); } });
+      }
+      if (tester.active) items.push(tester.item(t));
+    }
+    for (const [id, o] of Object.entries(layout.occluders)) {
+      items.push({ base: o.base, occ: true, draw: () => {
+        ctx.drawImage(occ[id], o.x, o.y);
+        const aid = id.startsWith("desk_") && id.slice(5), l = aid && layout.laptops[aid];
+        if (l && !state.empty && !state.archOnly && (!LIVE || liveWorking[aid])) {   // brillo de la laptop (trabajando)
+          const a = 0.10 + 0.08 * Math.sin((animT(t) + phase[aid]) / 380);
+          ctx.fillStyle = `rgba(${glow[aid]},${a})`; ctx.fillRect(l.x + 2, l.y + 1, l.w - 4, l.h - 8);
+        }
+      } });
+    }
+    items.sort((p, q) => p.base - q.base || (p.occ ? -1 : 1));
+    for (const it of items) it.draw();
+    drawNav();
+    // flechas del pasillo: una onda de luz que baja
+    if (!state.archOnly) {
+      const c = layout.chevrons; ctx.globalCompositeOperation = "lighter";
+      for (let y = 0; y < c.h; y++) {
+        const a = Math.max(0, Math.cos(((y - (animT(t) / 40) % (c.h + 16)) / 7))) ** 3 * 0.7;
+        if (a > 0.02) { ctx.globalAlpha = a; ctx.drawImage(chev, c.x, c.y + y, c.w, 1, c.x, c.y + y, c.w, 1); }
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    }
+    if (state.typing || frame.tv === undefined) { drawTV(animT(t)); frame.tv = 1; }
+    // batería: se carga despacio y vuelve a empezar
+    if (state.typing) { charge = charge >= 100 ? 40 : charge + 0.02; if (Math.floor(t / 500) !== frame.lb) { frame.lb = Math.floor(t / 500); drawBattery(); } }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})().catch(sceneError);
+
+// ----- escala entera sobre la grilla 557×314 (entra a lo ancho y a lo alto) -----
+function fit() {
+  const aw = window.innerWidth - 32, ah = window.innerHeight - 90;
+  const k = Math.floor(Math.min(aw / 557, ah / 314));    // px de pantalla por píxel lógico
+  const scale = k >= 1 ? k / 3 : Math.min(aw / 1671, ah / 942);   // pantallas muy chicas: sin entero
+  document.documentElement.style.setProperty("--k", scale);
+}
+fit(); addEventListener("resize", fit);
+
+// ----- controles -----
+const tog = (id, key, after) => document.getElementById(id).addEventListener("click", e => {
+  state[key] = !state[key]; e.currentTarget.setAttribute("aria-pressed", state[key]); after && after();
+});
+tog("btnEmpty", "empty", () => {
+  document.querySelector(".bubble").style.visibility = state.empty ? "hidden" : "";
+  document.querySelectorAll(".zzz").forEach(z => z.style.visibility = state.empty ? "hidden" : "");
+});
+tog("btnLayers", "archOnly", () => {
+  const hide = state.archOnly;
+  document.querySelectorAll(".hud,.sign,.rsign,.battery,.pct,.zzz,.osign,.bubble,.panel,#tv,.holo").forEach(el => el.style.visibility = hide ? "hidden" : "");
+});
+tog("btnTyping", "typing");
+if (REDUCED && !MEDIR) document.getElementById("btnTyping").setAttribute("aria-pressed", "false");
+tog("btnNav", "nav", () => { document.getElementById("navc").style.display = state.nav ? "" : "none"; drawNav.done = false; });
+tog("btnTest", "test", () => { if (state.test) tester.start(performance.now()); else { tester.active = false; document.getElementById("testInfo").textContent = ""; } });
+document.getElementById("ovl").addEventListener("input", e => {
+  document.getElementById("overlay").style.opacity = e.target.value / 100;
+  document.getElementById("ovlv").textContent = e.target.value + "%";
+});
+</script>
+</body>
+</html>
